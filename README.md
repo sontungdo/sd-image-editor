@@ -9,7 +9,6 @@ This image editor is natively built for the SD Web UI ecosystem (compatible with
 1. Go to your Web UI: Extensions -> Install from URL
 2. Paste `https://github.com/sontungdo/sd-image-editor.git` in the first box
 3. Install
-<br>
 ![](readme-img/github-install.png)
 
 ## Example usage
