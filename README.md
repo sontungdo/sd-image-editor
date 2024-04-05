@@ -11,7 +11,7 @@ This image editor is natively built for the [A1111 Stable Diffusion Web UI](http
 
 ---
 ## ➡️ Installation
-### Install through official index (coming soon)
+### Install through official index
 1. Go to your Web UI: Extensions -> Available
 2. Search for sd-image-editor
 3. Install
