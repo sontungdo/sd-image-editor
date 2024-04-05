@@ -6,6 +6,7 @@
 ![Thumbnail](readme-img/Base-UI.png)
 <p align = "center"><b>A simple, lightweight, and easy-to-use image editor for Stable Diffusion Web UI</b></p>
 <br>
+
 This image editor is natively built for the [A1111 Stable Diffusion Web UI](https://github.com/AUTOMATIC1111/stable-diffusion-webui) ecosystem (compatible with Forge) that offers integration with other core functions of SD Web UI to speed up your workflows. Quickly rotate or enhance image colors, then send it to img2img in just a few seconds! 🚀🚀🚀
 
 ---
