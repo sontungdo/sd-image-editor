@@ -2,17 +2,29 @@ import gradio as gr
 import os
 import string
 
-from modules import script_callbacks
+from modules import script_callbacks, shared, util
 from modules.ui_components import ResizeHandleRow
-from modules import shared
-from modules.shared import opts, cmd_opts
+from modules.paths_internal import default_output_dir
 import modules.infotext_utils as parameters_copypaste
 
 from PIL import Image, ImageEnhance, ImageFilter, ImageTransform
 
-save_path = os.path.join("output", "img2img-images", "sd-image-editor")
+def on_ui_settings():
+    section = ('saving-paths', "Paths for saving")
+    shared.opts.add_option(
+        "sd_image_editor_outdir",
+        shared.OptionInfo(
+            util.truncate_path(os.path.join(default_output_dir, 'sd-image-editor')),
+            'Output directory for sd-image-editor',
+            component_args=shared.hide_dirs,
+            section=('saving-paths', "Paths for saving"),
+        )
+    )
+
 
 def edit(img, degree, expand, flip, interpolate_mode, color, contrast, brightness, sharpness):
+    if img is None:
+        return None
     # Flip
     if flip:
         img = img.transpose(method=Image.Transpose.FLIP_LEFT_RIGHT)
@@ -40,15 +52,46 @@ def save_image(img):
     # Generate filename
     filename = ''.join(choices(string.ascii_letters + string.digits, k=12)) + ".png"
     # Construct path to save
-    os.makedirs(save_path, exist_ok=True)
+    os.makedirs(shared.opts.sd_image_editor_outdir, exist_ok=True)
     # Save
-    img.save(os.path.join(save_path, filename), format="PNG")
+    img.save(os.path.join(shared.opts.sd_image_editor_outdir, filename), format="PNG")
     return
 
+
 def open_folder():
-    os.makedirs(save_path, exist_ok=True)
-    os.startfile(save_path)
-    return
+    # adopted from https://github.com/AUTOMATIC1111/stable-diffusion-webui/blob/20123d427b09901396133643be78f6b692393b0c/modules/util.py#L176-L208
+    """Open a folder in the file manager of the respect OS."""
+    # import at function level to avoid potential issues
+    import gradio as gr
+    import platform
+    import sys
+    import subprocess
+    path = shared.opts.sd_image_editor_outdir
+    if not os.path.exists(path):
+        msg = f'Folder "{path}" does not exist. after you save an image, the folder will be created.'
+        print(msg)
+        gr.Info(msg)
+        return
+    elif not os.path.isdir(path):
+        msg = f"""
+WARNING
+An open_folder request was made with an path that is not a folder.
+This could be an error or a malicious attempt to run code on your computer.
+Requested path was: {path}
+"""
+        print(msg, file=sys.stderr)
+        gr.Warning(msg)
+        return
+
+    path = os.path.normpath(path)
+    if platform.system() == "Windows":
+        os.startfile(path)
+    elif platform.system() == "Darwin":
+        subprocess.Popen(["open", path])
+    elif "microsoft-standard-WSL2" in platform.uname().release:
+        subprocess.Popen(["wsl-open", path])
+    else:
+        subprocess.Popen(["xdg-open", path])
 
 def on_ui_tabs():
     with gr.Blocks(analytics_enabled=False) as image_editor_interface:
@@ -135,10 +178,8 @@ def on_ui_tabs():
                     save_button = gr.Button(value="Save to img2img",
                                             variant="primary",
                                             scale=4)
-                    if os.name == "nt":
-                        folder_symbol = '\U0001f4c2'  # 📂
-                        open_folder_button = gr.Button(value=folder_symbol,
-                                                       scale=1)
+                    folder_symbol = '\U0001f4c2'  # 📂
+                    open_folder_button = gr.Button(value=folder_symbol, scale=1)
                 
                 with gr.Row():
                     buttons = parameters_copypaste.create_buttons(["img2img", "inpaint", "extras"])
@@ -171,3 +212,4 @@ def on_ui_tabs():
 
       
 script_callbacks.on_ui_tabs(on_ui_tabs)
+script_callbacks.on_ui_settings(on_ui_settings)
