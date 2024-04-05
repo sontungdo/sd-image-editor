@@ -175,7 +175,7 @@ def on_ui_tabs():
                 with gr.Row():
                     render_button = gr.Button(value="Render")
                 with gr.Row():
-                    save_button = gr.Button(value="Save to output foldedr",
+                    save_button = gr.Button(value="Save to output folder",
                                             variant="primary",
                                             scale=4)
                     folder_symbol = '\U0001f4c2'  # 📂
