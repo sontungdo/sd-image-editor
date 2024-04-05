@@ -13,6 +13,8 @@ from PIL import Image, ImageEnhance, ImageFilter, ImageTransform
 save_path = os.path.join("output", "img2img-images", "sd-image-editor")
 
 def edit(img, degree, expand, flip, interpolate_mode, color, contrast, brightness, sharpness):
+    if img is None:
+        return None
     # Flip
     if flip:
         img = img.transpose(method=Image.Transpose.FLIP_LEFT_RIGHT)
