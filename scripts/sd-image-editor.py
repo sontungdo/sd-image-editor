@@ -74,11 +74,11 @@ def open_folder():
         return
     elif not os.path.isdir(path):
         msg = f"""
-WARNING
-An open_folder request was made with an path that is not a folder.
-This could be an error or a malicious attempt to run code on your computer.
-Requested path was: {path}
-"""
+            WARNING
+            An open_folder request was made with an path that is not a folder.
+            This could be an error or a malicious attempt to run code on your computer.
+            Requested path was: {path}
+            """
         print(msg, file=sys.stderr)
         gr.Warning(msg)
         return
@@ -112,7 +112,7 @@ def on_ui_tabs():
                         rotate_slider = gr.Slider(
                             minimum=-180,
                             maximum=180,
-                            step=5,
+                            step=1,
                             value=0,
                             label="Rotate"
                         )
@@ -175,7 +175,7 @@ def on_ui_tabs():
                 with gr.Row():
                     render_button = gr.Button(value="Render")
                 with gr.Row():
-                    save_button = gr.Button(value="Save to img2img",
+                    save_button = gr.Button(value="Save to output foldedr",
                                             variant="primary",
                                             scale=4)
                     folder_symbol = '\U0001f4c2'  # 📂
