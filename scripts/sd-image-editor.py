@@ -3,7 +3,7 @@ import os
 import string
 
 from modules import script_callbacks, shared, util
-from modules.ui_components import ResizeHandleRow
+from modules.ui_components import ResizeHandleRow, InputAccordion, FormColumn, FormRow
 from modules.paths_internal import default_output_dir
 import modules.infotext_utils as parameters_copypaste
 
@@ -22,7 +22,7 @@ def on_ui_settings():
     )
 
 
-def edit(img, degree, expand, flip, interpolate_mode, color, contrast, brightness, sharpness):
+def edit(img, degree, expand, flip, crop_enabled, bbox_w, bbox_h, bbox_center_x, bbox_center_y, interpolate_mode, color, contrast, brightness, sharpness):
     if img is None:
         return None
     # Flip
@@ -36,6 +36,15 @@ def edit(img, degree, expand, flip, interpolate_mode, color, contrast, brightnes
     elif interpolate_mode == "Bicubic":
         resample_obj = Image.BICUBIC
     img = img.rotate(-degree, expand=expand, resample=resample_obj) # Rotate closewise
+    # Crop
+    if crop_enabled:
+        # Calculate coordinates of bbox corners
+        w, h = img.size
+        left = (bbox_center_x - bbox_w/2)/100 * w
+        upper = (bbox_center_y - bbox_h/2)/100 * h
+        right = (bbox_center_x + bbox_w/2)/100 * w
+        lower = (bbox_center_y + bbox_h/2)/100 * h
+        img = img.crop((left, upper, right, lower))
     # Enhance
     img_enhance = ImageEnhance.Color(img)
     img = img_enhance.enhance(color)
@@ -103,7 +112,7 @@ def on_ui_tabs():
                                     source="upload", 
                                     interactive=True, 
                                     type="pil", 
-                                    tool="editor", 
+                                    tool=None, 
                                     image_mode="RGBA",
                                     height=500)
 
@@ -124,6 +133,41 @@ def on_ui_tabs():
                             False,
                             label="Flip image"
                         )
+                    with gr.Row():
+                        with InputAccordion(False, label="Crop") as crop_enabled:
+                            with gr.Row():
+                                with gr.Column(variant="panel"):
+                                    gr.HTML(value="Bounding box dimension (%)")
+                                    bbox_w = gr.Slider(
+                                        minimum=0,
+                                        maximum=100,
+                                        step=0.1,
+                                        value=100,
+                                        label="Width"
+                                    )
+                                    bbox_h = gr.Slider(
+                                        minimum=0,
+                                        maximum=100,
+                                        step=0.1,
+                                        value=100,
+                                        label="height"
+                                    )
+                                with gr.Column(variant="panel"):
+                                    gr.HTML(value="Bounding box center (%)")
+                                    bbox_center_x = gr.Slider(
+                                        minimum=0,
+                                        maximum=100,
+                                        step=0.1,
+                                        value=50,
+                                        label="Horizontal (left to right)"
+                                    )
+                                    bbox_center_y = gr.Slider(
+                                        minimum=0,
+                                        maximum=100,
+                                        step=0.1,
+                                        value=50,
+                                        label="Vertical (up to down)"
+                                    )
                     with gr.Row():
                         with gr.Accordion(label="Advanced", open=False):
                             interpolation_options = gr.Radio(
@@ -189,8 +233,8 @@ def on_ui_tabs():
                     ))
 
 
-            control_inputs = [rotate_slider, rotate_expand_option, flip_option, interpolation_options, color_slider,\
-                contrast_slider, brightness_slider, sharpness_slider]
+            control_inputs = [rotate_slider, rotate_expand_option, flip_option, crop_enabled, bbox_w, bbox_h, bbox_center_x, bbox_center_y, interpolation_options, \
+                color_slider, contrast_slider, brightness_slider, sharpness_slider]
             
             # Event listeners for all editing options
             
@@ -198,11 +242,17 @@ def on_ui_tabs():
             render_button.click(edit, inputs=[init_img, *control_inputs], outputs=[output_img])
             save_button.click(save_image, inputs=[output_img], outputs=[])
             open_folder_button.click(open_folder, inputs=[], outputs=[])
-            
+            # Tranform tab
             rotate_slider.release(edit, inputs=[init_img, *control_inputs], outputs=[output_img])
             rotate_expand_option.select(edit, inputs=[init_img, *control_inputs], outputs=[output_img])
             flip_option.select(edit, inputs=[init_img, *control_inputs], outputs=[output_img])
+            crop_enabled.select(edit, inputs=[init_img, *control_inputs], outputs=[output_img])
+            bbox_w.release(edit, inputs=[init_img, *control_inputs], outputs=[output_img])
+            bbox_h.release(edit, inputs=[init_img, *control_inputs], outputs=[output_img])
+            bbox_center_x.release(edit, inputs=[init_img, *control_inputs], outputs=[output_img])
+            bbox_center_y.release(edit, inputs=[init_img, *control_inputs], outputs=[output_img])
             interpolation_options.select(edit, inputs=[init_img, *control_inputs], outputs=[output_img])
+            # Enhance tab
             color_slider.release(edit, inputs=[init_img, *control_inputs], outputs=[output_img])
             contrast_slider.release(edit, inputs=[init_img, *control_inputs], outputs=[output_img])
             brightness_slider.release(edit, inputs=[init_img, *control_inputs], outputs=[output_img])
