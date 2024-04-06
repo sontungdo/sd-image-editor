@@ -7,7 +7,7 @@
 <p align = "center"><b>A simple, lightweight, and easy-to-use image editor for Stable Diffusion Web UI</b></p>
 <br>
 
-This image editor is natively built for the [A1111 Stable Diffusion Web UI](https://github.com/AUTOMATIC1111/stable-diffusion-webui) ecosystem (compatible with [Forge](https://github.com/lllyasviel/stable-diffusion-webui-forge)) that offers integration with other core functions of SD Web UI to speed up your workflows. Quickly rotate or enhance image colors, then send it to img2img in just a few seconds! 🚀🚀🚀
+This image editor is natively built for the [A1111 Stable Diffusion Web UI](https://github.com/AUTOMATIC1111/stable-diffusion-webui) ecosystem (compatible with [Forge](https://github.com/lllyasviel/stable-diffusion-webui-forge)) that offers integration with other core functions of SD Web UI to speed up your workflows. Quickly crop, rotate, enhance image, and send it to img2img in just a few seconds! 🚀🚀🚀
 
 ---
 ## ➡️ Installation
@@ -25,10 +25,16 @@ This image editor is natively built for the [A1111 Stable Diffusion Web UI](http
 
 ---
 ## ➡️ Example usage
-Flip and adjust color, contrast, brightness
-![](readme-img/case-1.png)
+Crop and adjust color, contrast, brightness
+![](readme-img/case-1a.png)
+Send result to inpainting
+![](readme-img/case-1b.png)
 
 ---
 ## ➡️ Todo list
+- [x] Add cropping (built from scratch for Gradio 3)
+- [ ] Add send to image editor buttons
+- [ ] Add Gradio built in cropping tool (only available once A1111 is upgraded to Gradio 4)
+- [ ] Add resize
 - [ ] Add more adjust features and filters
-- [ ] Add cropping and resize
+

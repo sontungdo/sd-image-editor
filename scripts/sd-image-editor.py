@@ -7,7 +7,7 @@ from modules.ui_components import ResizeHandleRow, InputAccordion, FormColumn, F
 from modules.paths_internal import default_output_dir
 import modules.infotext_utils as parameters_copypaste
 
-from PIL import Image, ImageEnhance, ImageFilter, ImageTransform
+from PIL import Image, ImageEnhance, ImageDraw
 
 def on_ui_settings():
     section = ('saving-paths', "Paths for saving")
@@ -22,9 +22,64 @@ def on_ui_settings():
     )
 
 
+def draw_bbox(img, crop_enabled, bbox_w, bbox_h, bbox_center_x, bbox_center_y):
+    if img is None:
+        return None
+    if crop_enabled:
+        # Calculate coordinates of bbox corners
+        w, h = img.size
+        left = (bbox_center_x - bbox_w/2)/100 * w 
+        upper = (bbox_center_y - bbox_h/2)/100 * h
+        right = (bbox_center_x + bbox_w/2)/100 * w
+        lower = (bbox_center_y + bbox_h/2)/100 * h
+        # Check bounding condition
+        left = 0 if left < 0 else left
+        upper = 0 if upper < 0 else upper
+        right = w if right > w else right
+        lower = h if lower > h else lower
+        # Draw bounding box
+        TINT_COLOR = (0, 0, 0)  # Black
+        TRANSPARENCY = .6  # Degree of transparency, 0-100%
+        OPACITY = int(255 * TRANSPARENCY)
+        OUTLINE_OPACITY = int(255 * TRANSPARENCY * 1)
+        BBOX_COLOR = (220, 220, 220)
+        # Create a bounding box overlay
+        overlay = Image.new('RGBA', img.size, TINT_COLOR+(OPACITY,)) # Shade everything outside bbox
+        draw = ImageDraw.Draw(overlay)  # Create a context for drawing things on it
+        draw.rectangle(((left, upper), (right, lower)), 
+                       fill=(255, 255, 255, 0), 
+                       outline=BBOX_COLOR+(OUTLINE_OPACITY,),
+                       width=2) # Make bounding box transparent
+        # Draw lines separating each side into 3 parts
+        third_left = left*1/3 + right*2/3
+        third_right = left*2/3 + right*1/3
+        third_up = lower*1/3+upper*2/3
+        third_down = lower*2/3+upper*1/3
+        draw.line([(third_left, upper), (third_left, lower)], fill=BBOX_COLOR+(OUTLINE_OPACITY,), width=1)
+        draw.line([(third_right, upper), (third_right, lower)], fill=BBOX_COLOR+(OUTLINE_OPACITY,), width=1)
+        draw.line([(left, third_up), (right, third_up)], fill=BBOX_COLOR+(OUTLINE_OPACITY,), width=1)
+        draw.line([(left, third_down), (right, third_down)], fill=BBOX_COLOR+(OUTLINE_OPACITY,), width=1)
+        # Merge image with bounding box overlay with alpha composite
+        img = Image.alpha_composite(img, overlay) 
+    return img
+
+
+def store_original_input(img):
+    return img
+
+
 def edit(img, degree, expand, flip, crop_enabled, bbox_w, bbox_h, bbox_center_x, bbox_center_y, interpolate_mode, color, contrast, brightness, sharpness):
     if img is None:
         return None
+    # Crop
+    if crop_enabled:
+        # Calculate coordinates of bbox corners
+        w, h = img.size
+        left = (bbox_center_x - bbox_w/2)/100 * w
+        upper = (bbox_center_y - bbox_h/2)/100 * h
+        right = (bbox_center_x + bbox_w/2)/100 * w
+        lower = (bbox_center_y + bbox_h/2)/100 * h
+        img = img.crop((left, upper, right, lower))
     # Flip
     if flip:
         img = img.transpose(method=Image.Transpose.FLIP_LEFT_RIGHT)
@@ -36,15 +91,6 @@ def edit(img, degree, expand, flip, crop_enabled, bbox_w, bbox_h, bbox_center_x,
     elif interpolate_mode == "Bicubic":
         resample_obj = Image.BICUBIC
     img = img.rotate(-degree, expand=expand, resample=resample_obj) # Rotate closewise
-    # Crop
-    if crop_enabled:
-        # Calculate coordinates of bbox corners
-        w, h = img.size
-        left = (bbox_center_x - bbox_w/2)/100 * w
-        upper = (bbox_center_y - bbox_h/2)/100 * h
-        right = (bbox_center_x + bbox_w/2)/100 * w
-        lower = (bbox_center_y + bbox_h/2)/100 * h
-        img = img.crop((left, upper, right, lower))
     # Enhance
     img_enhance = ImageEnhance.Color(img)
     img = img_enhance.enhance(color)
@@ -55,6 +101,7 @@ def edit(img, degree, expand, flip, crop_enabled, bbox_w, bbox_h, bbox_center_x,
     img_enhance = ImageEnhance.Sharpness(img)
     img = img_enhance.enhance(sharpness)
     return img
+
 
 def save_image(img):
     from random import choices
@@ -102,20 +149,26 @@ def open_folder():
     else:
         subprocess.Popen(["xdg-open", path])
 
+
 def on_ui_tabs():
     with gr.Blocks(analytics_enabled=False) as image_editor_interface:
         with ResizeHandleRow():
             with gr.Column():
-                init_img = gr.Image(label="Image for editing", 
-                                    elem_id="image_editing", 
-                                    show_label=False, 
-                                    source="upload", 
-                                    interactive=True, 
-                                    type="pil", 
-                                    tool=None, 
+                input_img = gr.Image(label="Image for editing", 
+                                     elem_id="image_editing", 
+                                     show_label=False, 
+                                     source="upload", 
+                                     interactive=True, 
+                                     type="pil", 
+                                     tool=None,
+                                     image_mode="RGBA",
+                                     height=500)
+                init_img = gr.Image(label="Output image", 
+                                    height=500, 
+                                    type="pil",
                                     image_mode="RGBA",
-                                    height=500)
-
+                                    interactive=False,
+                                    visible=False)
                 with gr.TabItem('Transform', id='transform', elem_id="transform_tab") as tab_transform:
                     with gr.Row():
                         rotate_slider = gr.Slider(
@@ -177,7 +230,7 @@ def on_ui_tabs():
                                 info="in increasing order of quality (with performance cost)"
                             )
                         
-                with gr.TabItem('Adjust', id='adjust', elem_id="adjust_tab") as tab_adjust:
+                with gr.TabItem('Enhance', id='enhance', elem_id="enhance_tab") as tab_adjust:
                     with gr.Row():
                         color_slider = gr.Slider(
                             minimum=0,
@@ -215,6 +268,7 @@ def on_ui_tabs():
                 output_img = gr.Image(label="Output image",
                                       height=500,
                                       type="pil",
+                                      image_mode="RGBA",
                                       interactive=False)
                 with gr.Row():
                     render_button = gr.Button(value="Render")
@@ -231,14 +285,17 @@ def on_ui_tabs():
                     parameters_copypaste.register_paste_params_button(parameters_copypaste.ParamBinding(
                         paste_button=button, tabname=tabname, source_image_component=output_img,
                     ))
-
-
-            control_inputs = [rotate_slider, rotate_expand_option, flip_option, crop_enabled, bbox_w, bbox_h, bbox_center_x, bbox_center_y, interpolation_options, \
-                color_slider, contrast_slider, brightness_slider, sharpness_slider]
             
             # Event listeners for all editing options
+            control_inputs = \
+                [rotate_slider, rotate_expand_option, flip_option, crop_enabled, bbox_w, bbox_h, bbox_center_x, bbox_center_y, interpolation_options, \
+                color_slider, contrast_slider, brightness_slider, sharpness_slider]
+            bbox_inputs = [crop_enabled, bbox_w, bbox_h, bbox_center_x, bbox_center_y]
+            # I/O
+            input_img.upload(store_original_input, inputs=[input_img], outputs=[init_img]) # Store persistent copy of the initial uploaded image in init_img
+            input_img.clear(store_original_input, inputs=[input_img], outputs=[init_img])
             
-            init_img.upload(edit, inputs=[init_img, *control_inputs], outputs=[output_img])
+            init_img.change(edit, inputs=[init_img, *control_inputs], outputs=[output_img])
             render_button.click(edit, inputs=[init_img, *control_inputs], outputs=[output_img])
             save_button.click(save_image, inputs=[output_img], outputs=[])
             open_folder_button.click(open_folder, inputs=[], outputs=[])
@@ -251,7 +308,14 @@ def on_ui_tabs():
             bbox_h.release(edit, inputs=[init_img, *control_inputs], outputs=[output_img])
             bbox_center_x.release(edit, inputs=[init_img, *control_inputs], outputs=[output_img])
             bbox_center_y.release(edit, inputs=[init_img, *control_inputs], outputs=[output_img])
-            interpolation_options.select(edit, inputs=[init_img, *control_inputs], outputs=[output_img])
+            interpolation_options.input(edit, inputs=[init_img, *control_inputs], outputs=[output_img])
+            # Draw bounding box
+            init_img.change(draw_bbox, inputs=[init_img, *bbox_inputs], outputs=[input_img])
+            crop_enabled.select(draw_bbox, inputs=[init_img, *bbox_inputs], outputs=[input_img])
+            bbox_w.release(draw_bbox, inputs=[init_img, *bbox_inputs], outputs=[input_img])
+            bbox_h.release(draw_bbox, inputs=[init_img, *bbox_inputs], outputs=[input_img])
+            bbox_center_x.release(draw_bbox, inputs=[init_img, *bbox_inputs], outputs=[input_img])
+            bbox_center_y.release(draw_bbox, inputs=[init_img, *bbox_inputs], outputs=[input_img])
             # Enhance tab
             color_slider.release(edit, inputs=[init_img, *control_inputs], outputs=[output_img])
             contrast_slider.release(edit, inputs=[init_img, *control_inputs], outputs=[output_img])
