@@ -64,7 +64,7 @@ def draw_bbox(img, crop_enabled, bbox_w, bbox_h, bbox_center_x, bbox_center_y):
     return img
 
 
-def store_original_input(img):
+def store_image(img):
     return img
 
 
@@ -117,8 +117,6 @@ def save_image(img):
 def open_folder():
     # adopted from https://github.com/AUTOMATIC1111/stable-diffusion-webui/blob/20123d427b09901396133643be78f6b692393b0c/modules/util.py#L176-L208
     """Open a folder in the file manager of the respect OS."""
-    # import at function level to avoid potential issues
-    import gradio as gr
     import platform
     import sys
     import subprocess
@@ -163,7 +161,8 @@ def on_ui_tabs():
                                      tool=None,
                                      image_mode="RGBA",
                                      height=500)
-                init_img = gr.Image(label="Output image", 
+                init_img = gr.Image(label="Unedited image", 
+                                    elem_id="original_image",
                                     height=500, 
                                     type="pil",
                                     image_mode="RGBA",
@@ -281,10 +280,10 @@ def on_ui_tabs():
                 
                 with gr.Row():
                     buttons = parameters_copypaste.create_buttons(["img2img", "inpaint", "extras"])
-                for tabname, button in buttons.items():
-                    parameters_copypaste.register_paste_params_button(parameters_copypaste.ParamBinding(
-                        paste_button=button, tabname=tabname, source_image_component=output_img,
-                    ))
+                    for tabname, button in buttons.items():
+                        parameters_copypaste.register_paste_params_button(parameters_copypaste.ParamBinding(
+                            paste_button=button, tabname=tabname, source_image_component=output_img,
+                        ))
             
             # Event listeners for all editing options
             control_inputs = \
@@ -292,8 +291,8 @@ def on_ui_tabs():
                 color_slider, contrast_slider, brightness_slider, sharpness_slider]
             bbox_inputs = [crop_enabled, bbox_w, bbox_h, bbox_center_x, bbox_center_y]
             # I/O
-            input_img.upload(store_original_input, inputs=[input_img], outputs=[init_img]) # Store persistent copy of the initial uploaded image in init_img
-            input_img.clear(store_original_input, inputs=[input_img], outputs=[init_img])
+            input_img.upload(store_image, inputs=[input_img], outputs=[init_img]) # Store persistent copy of the initial uploaded image in init_img
+            input_img.clear(store_image, inputs=[input_img], outputs=[init_img])
             
             init_img.change(edit, inputs=[init_img, *control_inputs], outputs=[output_img])
             render_button.click(edit, inputs=[init_img, *control_inputs], outputs=[output_img])
@@ -321,7 +320,7 @@ def on_ui_tabs():
             contrast_slider.release(edit, inputs=[init_img, *control_inputs], outputs=[output_img])
             brightness_slider.release(edit, inputs=[init_img, *control_inputs], outputs=[output_img])
             sharpness_slider.release(edit, inputs=[init_img, *control_inputs], outputs=[output_img])
-            
+        
     return [(image_editor_interface, "Image Editor", "image_editor_tab")]
 
       
